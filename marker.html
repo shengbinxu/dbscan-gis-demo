@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+    <title>海量点</title>
+    <link rel="stylesheet" href="https://a.amap.com/jsapi_demos/static/demo-center/css/demo-center.css" />
+    <style>
+        html,
+        body,
+        #container {
+            height: 100%;
+            width: 100%;
+        }
+
+        .input-card .btn {
+            margin-right: 1.2rem;
+            width: 9rem;
+        }
+
+        .input-card .btn:last-child {
+            margin-right: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container" class="map" tabindex="0"></div>
+    <div class="input-card">
+        <h4>全量/抽稀</h4>
+        <div class="input-item">
+            <input type="button" class="btn" value="显示全量" onclick='setStyle(1)' />
+            <input type="button" class="btn" value="显示抽稀" onclick='setStyle(2)' />
+        </div>
+    </div>
+    <script type="text/javascript" src='loc.js'></script>
+    <script src="node_modules/density-clustering/lib/DBSCAN.js"></script>
+    <script type="text/javascript"
+        src="https://webapi.amap.com/maps?v=2.0&key=8eaf54d404389b4a4c6e5914db273835&plugin=AMap.Adaptor"></script>
+    <script type="text/javascript">
+        var map = new AMap.Map('container', {
+            zoom: 12,
+            center: [118.53465, 24.75676],
+            showIndoorMap: false,
+            viewMode: '3D',
+        });
+
+        var sparseCitys = [];
+
+        // JSAPI 2.0 支持显示设置 zIndex, zIndex 越大约靠前，默认按顺序排列
+        var style = [{
+            url: 'http://122.224.147.125:99/influxdb/icon/beet.png',
+            anchor: new AMap.Pixel(6, 6),
+            size: new AMap.Size(30, 30),
+            zIndex: 3,
+        }, {
+            // url: 'https://webapi.amap.com/images/mass/mass1.png',
+            url: 'http://122.224.147.125:99/influxdb/icon/carrot.png',
+            anchor: new AMap.Pixel(4, 4),
+            size: new AMap.Size(30, 30),
+            zIndex: 2,
+        }, {
+            url: 'http://122.224.147.125:99/influxdb/icon/pineapple.png',
+            anchor: new AMap.Pixel(3, 3),
+            size: new AMap.Size(30, 30),
+            zIndex: 1,
+        },
+        {
+            url: 'http://122.224.147.125:99/influxdb/icon/passion-fruit.png',
+            anchor: new AMap.Pixel(6, 6),
+            size: new AMap.Size(30, 30),
+            zIndex: 3,
+        }, {
+            // url: 'https://webapi.amap.com/images/mass/mass1.png',
+            url: 'http://122.224.147.125:99/influxdb/icon/potato.png',
+            anchor: new AMap.Pixel(4, 4),
+            size: new AMap.Size(30, 30),
+            zIndex: 2,
+        }, {
+            url: 'http://122.224.147.125:99/influxdb/icon/durian.png',
+            anchor: new AMap.Pixel(3, 3),
+            size: new AMap.Size(30, 30),
+            zIndex: 1,
+        },
+        {
+            url: 'http://122.224.147.125:99/influxdb/icon/broccoli.png',
+            anchor: new AMap.Pixel(3, 3),
+            size: new AMap.Size(30, 30),
+            zIndex: 1,
+        }, {
+            url: 'http://122.224.147.125:99/influxdb/icon/chilli-pepper.png',
+            anchor: new AMap.Pixel(3, 3),
+            size: new AMap.Size(30, 30),
+            zIndex: 1,
+        }, {
+            url: 'http://122.224.147.125:99/influxdb/icon/strawberry.png',
+            anchor: new AMap.Pixel(3, 3),
+            size: new AMap.Size(30, 30),
+            zIndex: 1,
+        }
+        ];
+
+        groupEntityByLoc(citys);
+
+        var mass = new AMap.MassMarks(citys, {
+            opacity: 0.8,
+            zIndex: 111,
+            cursor: 'pointer',
+            style: style
+        });
+
+        var marker = new AMap.Marker({ content: ' ', map: map });
+
+        mass.on('mouseover', function (e) {
+            marker.setPosition(e.data.lnglat);
+            marker.setLabel({ content: e.data.name })
+        });
+
+        mass.setMap(map);
+
+        function setStyle(type) {
+            if (type == 1) {
+                // 全量
+                mass.setData(citys)
+            } else {
+                // 抽稀
+                mass.setData(sparseCitys)
+            }
+        }
+
+        function groupEntityByLoc(citys) {
+            var locArr = []; // loc数组
+            citys.forEach(entity => {
+                locArr.push(entity.lnglat);
+            })
+            var dbscan = new DBSCAN();
+            // parameters: 5 - neighborhood radius, 2 - number of points in neighborhood to form a cluster
+            // 对loc 进行分组。结果是原数组的下标。如[[1,3,4], [3,5,8]]
+            var clusters = dbscan.run(locArr, 0.0015, 1);
+            console.log(clusters, "clusters");
+            let locGroups = [];
+            let locGroupIndex = {}; // loc和组 id 关系
+            let sparseLocs = [];
+            clusters.forEach((group, index) => {
+                let locGroup = [];
+                sparseLocs.push(locToStr(locArr[group[0]]))
+                group.forEach(locIndex => {
+                    locGroup.push(locArr[locIndex]);
+                    locGroupIndex[locToStr(locArr[locIndex])] = index;
+                })
+                locGroups.push(locGroup);
+            })
+            console.log(locGroupIndex, "locGroupIndex")
+
+            // 对不同的组使用不同的样式
+            citys = citys.forEach(entity => {
+                let groupIndex = locGroupIndex[locToStr(entity.lnglat)];
+                let style = groupIndex % 6;
+                entity.style = style;
+                entity.name = entity.name + "_" + groupIndex + "组";
+                if (sparseLocs.includes(locToStr(entity.lnglat))) {
+                    sparseCitys.push(entity)
+                }
+            })
+
+            // 抽稀后的结果
+
+        };
+
+        function locToStr(loc) {
+            if (Array.isArray(loc)) {
+                if (loc.length != 2) {
+                    alert("loc格式错误");
+                }
+                return loc[0] + " " + loc[1];
+            } else {
+                return loc.lng + " " + loc.lat;
+            }
+        }
+    </script>
+</body>
+
+</html>
