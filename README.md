@@ -20,7 +20,7 @@ demo 中一共有 6000个 gps 点，抽稀之后剩下 1000多个点。
 有一个例外：
 ![img_2.png](img_2.png)
 
-DBSCAN算法会对点进行聚类，也就是分组。地图上每个点的 lalel 中，包含了组 ID。
+DBSCAN算法会对点进行聚类，也就是分组。地图上每个点的 label 中，包含了组 ID。
 截图这个区域，这个组很大，有 100多个点。如果抽稀，这个组就变成 1个点。可能会显得过于“稀疏”。
 根据业务需求，也可以调整抽稀算法。
 
@@ -28,8 +28,11 @@ chatgpt给出了一种基于“网格的抽稀”算法。
 
 # 应用场景
 1、高德地图上的“点标记”，当点数量大于 500，页面就会明显卡顿。“海量点标记”能解决卡顿问题，但是它不支持 gif 动图。
+
 https://lbs.amap.com/api/javascript-api/guide/overlays/marker
+
 https://lbs.amap.com/api/javascript-api/guide/overlays/massmarker
+
 如果业务就要求 gif 动图，那么“海量点标记”就不合适了。
 
 这时候就可以考虑“点抽稀”算法。思路：
